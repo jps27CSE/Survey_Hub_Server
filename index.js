@@ -49,6 +49,8 @@ async function run() {
     // await client.connect();
 
     const usersCollection = client.db("surveyHub").collection("users");
+    const surveysCollection = client.db("surveyHub").collection("surveys");
+    const voteSurveys = client.db("surveyHub").collection("vote_surveys");
 
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -67,9 +69,9 @@ async function run() {
         .send({ success: true });
     });
 
-    app.post("/logout", async (req, res) => {
+    app.get("/logout", async (req, res) => {
       const user = req.body;
-
+      console.log(user);
       res
         .clearCookie("token", { maxAge: 0, secure: true, sameSite: "none" })
         .send({ success: true });
@@ -103,6 +105,120 @@ async function run() {
         options
       );
       res.send(result);
+    });
+
+    // get all surveys
+    app.get("/surveys", async (req, res) => {
+      try {
+        console.log("hit");
+        const surveys = await surveysCollection.find({}).toArray();
+        res.send(surveys);
+      } catch (error) {
+        console.error("Error fetching surveys:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // get specific surveys
+    app.get("/surveys/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await surveysCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
+    // Get user role
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await usersCollection.findOne({ email });
+      res.send(result);
+    });
+
+    app.post("/submit-vote", verifyToken, async (req, res) => {
+      try {
+        const { userEmail, surveyId, selectedOption } = req.body;
+
+        const existingVote = await voteSurveys.findOne({
+          userEmail,
+          surveyId,
+        });
+
+        if (existingVote) {
+          return res.send({
+            message: "You have already voted for this survey",
+          });
+        }
+
+        const result = await voteSurveys.insertOne({
+          userEmail,
+          surveyId,
+          selectedOption,
+          timestamp: new Date(),
+        });
+
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error("Error submitting vote:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // Check if user has voted
+    app.get(
+      "/has-user-voted/:userEmail/:surveyId",
+      verifyToken,
+      async (req, res) => {
+        try {
+          const userEmail = req.params.userEmail;
+          const surveyId = req.params.surveyId;
+
+          const existingVote = await voteSurveys.findOne({
+            userEmail,
+            surveyId,
+          });
+
+          res.send({ hasVoted: !!existingVote });
+        } catch (error) {
+          console.error("Error checking if user has voted:", error);
+          res.status(500).send({ message: "Internal Server Error" });
+        }
+      }
+    );
+    //icrement vote
+    app.post("/increment-vote/:id", verifyToken, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await surveysCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $inc: { votes: 1 } }
+        );
+        res.send(result);
+      } catch (error) {
+        console.error("Error incrementing vote:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    app.post("/add-comment", verifyToken, async (req, res) => {
+      try {
+        const { surveyId, userEmail, commentContent } = req.body;
+
+        const result = await surveysCollection.updateOne(
+          { _id: new ObjectId(surveyId) },
+          {
+            $push: {
+              comments: {
+                user: userEmail,
+                content: commentContent,
+              },
+            },
+          }
+        );
+
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error("Error adding comment:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
     });
 
     // Send a ping to confirm a successful connection
