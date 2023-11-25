@@ -277,6 +277,8 @@ async function run() {
           votes: 0,
           YesVotes: 0,
           NoVotes: 0,
+          like: 0,
+          dislike: 0,
           comments: [],
           timestamp: new Date(),
         });
@@ -284,6 +286,40 @@ async function run() {
         res.send({ result });
       } catch (error) {
         console.error("Error creating survey:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // Increment like endpoint
+    app.post("/increment-like/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const result = await surveysCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $inc: { like: 1 } }
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error incrementing like:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // Increment dislike endpoint
+    app.post("/increment-dislike/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const result = await surveysCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $inc: { dislike: 1 } }
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error incrementing dislike:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
