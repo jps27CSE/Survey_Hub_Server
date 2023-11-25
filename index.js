@@ -19,6 +19,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // middlewares
+
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
 
@@ -51,6 +52,17 @@ async function run() {
     const usersCollection = client.db("surveyHub").collection("users");
     const surveysCollection = client.db("surveyHub").collection("surveys");
     const voteSurveys = client.db("surveyHub").collection("vote_surveys");
+
+    //for admins
+    const verifyAdmin = async (req, res, next) => {
+      const user = req.user;
+      const query = { email: user?.email };
+      const result = await usersCollection.findOne(query);
+      if (!result || result?.role !== "admin") {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      next();
+    };
 
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -198,6 +210,7 @@ async function run() {
       }
     });
 
+    //add comment
     app.post("/add-comment", verifyToken, async (req, res) => {
       try {
         const { surveyId, userEmail, commentContent } = req.body;
@@ -219,6 +232,28 @@ async function run() {
         console.error("Error adding comment:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
+    });
+
+    // get all users
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    //update user role
+    app.put("/users/update/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const query = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...user,
+          timestamp: Date.now(),
+        },
+      };
+      const result = await usersCollection.updateOne(query, updateDoc, options);
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
