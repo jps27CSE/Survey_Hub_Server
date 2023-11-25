@@ -256,6 +256,28 @@ async function run() {
       res.send(result);
     });
 
+    // create-survey endpoint
+    app.post("/create-survey",verifyToken, async (req, res) => {
+      try {
+        const { title, description, options, category } = req.body;
+
+        // Assuming you have a surveysCollection defined
+        const result = await surveysCollection.insertOne({
+          title,
+          description,
+          options,
+          category,
+          votes: 0,
+          comments: [],
+          timestamp: new Date(),
+        });
+        res.send(result);
+      } catch (error) {
+        console.error("Error creating survey:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
