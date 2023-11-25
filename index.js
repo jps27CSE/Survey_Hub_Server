@@ -195,21 +195,29 @@ async function run() {
         }
       }
     );
-    //icrement vote
-    app.post("/increment-vote/:id", verifyToken, async (req, res) => {
+    // Increment vote endpoint
+    app.post("/increment-vote/:id/:option?", verifyToken, async (req, res) => {
       try {
         const id = req.params.id;
+        const option = req.params.option;
+
+        // Create the update object
+        const updateObject = option
+          ? { $inc: { [`${option}Votes`]: 1, votes: 1 } } // Increment specific option and overall votes
+          : { $inc: { votes: 1 } }; // Increment overall votes
+
+        // Assuming you have a surveysCollection defined
         const result = await surveysCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $inc: { votes: 1 } }
+          updateObject
         );
+
         res.send(result);
       } catch (error) {
         console.error("Error incrementing vote:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
-
     //add comment
     app.post("/add-comment", verifyToken, async (req, res) => {
       try {
@@ -257,21 +265,23 @@ async function run() {
     });
 
     // create-survey endpoint
-    app.post("/create-survey",verifyToken, async (req, res) => {
+    app.post("/create-survey", async (req, res) => {
       try {
         const { title, description, options, category } = req.body;
 
-        // Assuming you have a surveysCollection defined
         const result = await surveysCollection.insertOne({
           title,
           description,
           options,
           category,
           votes: 0,
+          YesVotes: 0,
+          NoVotes: 0,
           comments: [],
           timestamp: new Date(),
         });
-        res.send(result);
+
+        res.send({ result });
       } catch (error) {
         console.error("Error creating survey:", error);
         res.status(500).send({ message: "Internal Server Error" });
