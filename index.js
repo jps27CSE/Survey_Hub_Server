@@ -331,11 +331,12 @@ async function run() {
     // Post survey report endpoint
     app.post("/post-report/:surveyId", verifyToken, async (req, res) => {
       try {
-        const { userEmail, reportContent } = req.body;
+        const { surveyTitle, userEmail, reportContent } = req.body;
         const surveyId = req.params.surveyId;
 
         const result = await surveyReportsCollection.insertOne({
           surveyId: new ObjectId(surveyId),
+          surveyTitle,
           userEmail,
           reportContent,
           timestamp: new Date(),
@@ -355,6 +356,17 @@ async function run() {
         res.send(surveyVotes);
       } catch (error) {
         console.error("Error fetching survey votes:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // get all survey reports
+    app.get("/survey-reports", async (req, res) => {
+      try {
+        const surveyReports = await surveyReportsCollection.find({}).toArray();
+        res.send(surveyReports);
+      } catch (error) {
+        console.error("Error fetching survey reports:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
