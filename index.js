@@ -150,7 +150,7 @@ async function run() {
 
     app.post("/submit-vote", verifyToken, async (req, res) => {
       try {
-        const { userEmail, surveyId, selectedOption } = req.body;
+        const { userName, userEmail, surveyId, selectedOption } = req.body;
 
         const existingVote = await voteSurveys.findOne({
           userEmail,
@@ -164,6 +164,7 @@ async function run() {
         }
 
         const result = await voteSurveys.insertOne({
+          userName,
           userEmail,
           surveyId,
           selectedOption,
@@ -343,6 +344,17 @@ async function run() {
         res.send({ success: true, result });
       } catch (error) {
         console.error("Error submitting report:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    //survey votes
+    app.get("/survey-votes", async (req, res) => {
+      try {
+        const surveyVotes = await voteSurveys.find({}).toArray();
+        res.send(surveyVotes);
+      } catch (error) {
+        console.error("Error fetching survey votes:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
