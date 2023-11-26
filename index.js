@@ -52,6 +52,9 @@ async function run() {
     const usersCollection = client.db("surveyHub").collection("users");
     const surveysCollection = client.db("surveyHub").collection("surveys");
     const voteSurveys = client.db("surveyHub").collection("vote_surveys");
+    const surveyReportsCollection = client
+      .db("surveyHub")
+      .collection("survey_reports");
 
     //for admins
     const verifyAdmin = async (req, res, next) => {
@@ -320,6 +323,26 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error incrementing dislike:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // Post survey report endpoint
+    app.post("/post-report/:surveyId", verifyToken, async (req, res) => {
+      try {
+        const { userEmail, reportContent } = req.body;
+        const surveyId = req.params.surveyId;
+
+        const result = await surveyReportsCollection.insertOne({
+          surveyId: new ObjectId(surveyId),
+          userEmail,
+          reportContent,
+          timestamp: new Date(),
+        });
+
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error("Error submitting report:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
