@@ -6,6 +6,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.unrqwzu.mongodb.net/?retryWrites=true&w=majority`;
 //middleware
@@ -56,6 +57,7 @@ async function run() {
       .db("surveyHub")
       .collection("survey_reports");
     const adminFeedback = client.db("surveyHub").collection("admin_feedback");
+    const paymentCollection = client.db("surveyHub").collection("payment");
 
     //for admins
     const verifyAdmin = async (req, res, next) => {
@@ -121,6 +123,39 @@ async function run() {
         options
       );
       res.send(result);
+    });
+
+    //generate client secret for stripe
+    app.post("/create-payment-intent", verifyToken, async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      if (!price || amount < 1) return;
+      const { client_secret } = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({ clientSecret: client_secret });
+    });
+
+    // Add this somewhere in your existing code
+    app.post("/save-payment", verifyToken, async (req, res) => {
+      try {
+        const { userEmail, paymentMethodId, transactionId, price } = req.body;
+
+        const result = await paymentCollection.insertOne({
+          userEmail,
+          paymentMethodId,
+          transactionId,
+          amount: price,
+          timestamp: new Date(),
+        });
+
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error("Error saving payment information:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
     });
 
     // get all surveys
@@ -432,6 +467,28 @@ async function run() {
         res.send(allFeedback);
       } catch (error) {
         console.error("Error fetching admin feedback:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // Update pro_user field to true
+    app.put("/update-pro-user/:email", verifyToken, async (req, res) => {
+      try {
+        const email = req.params.email;
+
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+          return res.status(404).send({ message: "User not found" });
+        }
+
+        const result = await usersCollection.updateOne(
+          { email },
+          { $set: { pro_user: true } }
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating pro_user status:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
