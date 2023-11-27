@@ -271,9 +271,10 @@ async function run() {
     // create-survey endpoint
     app.post("/create-survey", async (req, res) => {
       try {
-        const { title, description, options, category } = req.body;
+        const { userEmail, title, description, options, category } = req.body;
 
         const result = await surveysCollection.insertOne({
+          userEmail,
           title,
           description,
           options,
@@ -283,6 +284,7 @@ async function run() {
           NoVotes: 0,
           like: 0,
           dislike: 0,
+          publish: true,
           comments: [],
           timestamp: new Date(),
         });
@@ -367,6 +369,39 @@ async function run() {
         res.send(surveyReports);
       } catch (error) {
         console.error("Error fetching survey reports:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    app.put("/update-publish/:id", verifyToken, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const publishValue = req.body;
+
+        const result = await surveysCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { publish: true } }
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating publish status:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+    app.put("/update-publish-false/:id", verifyToken, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const publishValue = req.body;
+
+        const result = await surveysCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { publish: false } }
+        );
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating publish status:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
