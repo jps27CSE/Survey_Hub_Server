@@ -55,6 +55,7 @@ async function run() {
     const surveyReportsCollection = client
       .db("surveyHub")
       .collection("survey_reports");
+    const adminFeedback = client.db("surveyHub").collection("admin_feedback");
 
     //for admins
     const verifyAdmin = async (req, res, next) => {
@@ -402,6 +403,35 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error("Error updating publish status:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    //admin feedback post
+    app.post("/admin-feedback", verifyToken, async (req, res) => {
+      try {
+        const { adminEmail, feedbackText } = req.body;
+
+        const result = await adminFeedback.insertOne({
+          adminEmail,
+          feedbackText,
+          timestamp: new Date(),
+        });
+
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error("Error saving admin feedback:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
+    // Get all admin feedback
+    app.get("/admin-feedback", verifyToken, async (req, res) => {
+      try {
+        const allFeedback = await adminFeedback.find({}).toArray();
+        res.send(allFeedback);
+      } catch (error) {
+        console.error("Error fetching admin feedback:", error);
         res.status(500).send({ message: "Internal Server Error" });
       }
     });
