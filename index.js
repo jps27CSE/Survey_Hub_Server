@@ -493,6 +493,17 @@ async function run() {
       }
     });
 
+    // Get all payments endpoint
+    app.get("/all-payments", verifyToken, verifyAdmin, async (req, res) => {
+      try {
+        const allPayments = await paymentCollection.find({}).toArray();
+        res.send(allPayments);
+      } catch (error) {
+        console.error("Error fetching all payments:", error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
