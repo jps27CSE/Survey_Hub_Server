@@ -161,7 +161,6 @@ async function run() {
     // get all surveys
     app.get("/surveys", async (req, res) => {
       try {
-        console.log("hit");
         const surveys = await surveysCollection.find({}).toArray();
         res.send(surveys);
       } catch (error) {
